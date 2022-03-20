@@ -9,7 +9,7 @@ import boto3
 from loguru import logger
 from tqdm import tqdm
 
-from callbacks import ProgressPercentage
+from .callbacks import ProgressPercentage
 
 
 class SpacesClient:
@@ -40,7 +40,7 @@ class Spaces(SpacesClient):
         self.client, self.domain = super().connect()
         self.verbose = 0
 
-    def list_objects(self, pprint=False, simple=False):
+    def list_objects(self, pprint=False, simple=False, force_return=False):
         objects = self.client.list_objects(Bucket=self.space_name)
         if simple:
             objects = [{
@@ -50,7 +50,10 @@ class Spaces(SpacesClient):
             } for obj in objects['Contents']]
         if pprint or self.verbose == 1:
             print(json.dumps(objects, indent=4, default=str))
-        return objects
+            if force_return:
+                return objects
+        else:
+            return objects
 
     def download_file(self, file_name, output_path=None):
         if not output_path:
@@ -127,3 +130,18 @@ class Spaces(SpacesClient):
         for item in tqdm(_input, desc='Total uploaded files'):
             result.append(self._upload(item, **kwargs))
         return result
+
+    def delete_object(self, object_key):
+        if object_key.startswith('http'):
+            object_key = Path(object_key).name
+        res = self.client.delete_object(Bucket=self.space_name, Key=object_key)
+        if self.verbose == 1:
+            logger.info(res)
+        return res
+
+    # Aliases
+    list_files = list_objects
+    download = download_file
+    upload = upload_file
+    upload_files = upload_many
+    delete = delete_object
